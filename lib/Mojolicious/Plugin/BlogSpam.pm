@@ -638,7 +638,7 @@ L<Mojolicious>.
 
 =head1 SEE ALSO
 
-L<Blog::Spam>,
+L<Blog::Spam::API>,
 L<http://blogspam.net/api>.
 
 
