@@ -1,0 +1,316 @@
+=pod
+
+=head1 NAME
+
+Mojolicious::Plugin::BlogSpam - Test your comments using BlogSpam
+
+
+=head1 SYNOPSIS
+
+  # In Mojolicious
+  $app->plugin('BlogSpam');
+
+  # In Mojolicious::Lite
+  plugin 'BlogSpam';
+
+  # In Controller
+  my $blogspam = $c->blogspam(
+    comment => 'I just want to test the system!'
+  );
+
+  # Check for spam
+  if ($blogspam->test_comment) {
+    print "Your comment is no spam!\n";
+  };
+
+  # Train the system
+  $blogspam->classify_comment('ok');
+
+
+=head1 DESCRIPTION
+
+L<Mojolicious::Plugin::BlogSpam> is a simple plugin to test
+comments or posts for spam against a
+L<BlogSpam|http://blogspam.net/> instance.
+
+
+=head1 METHODS
+
+=head2 C<register>
+
+  # Mojolicious
+  $app->plugin(Blogspam => {
+    url  => 'blogspam.sojolicio.us',
+    port => '8888',
+    site => 'http://grimms-abenteuer.de/',
+    log  => '/spam.log',
+    log_level => 'debug'
+  });
+
+  # Mojolicious::Lite
+  plugin 'BlogSpam' => {
+    url  => 'blogspam.sojolicio.us',
+    port => '8888',
+    site => 'http://grimms-abenteuer.de/',
+    log  => '/spam.log',
+    log_level => 'debug'
+  };
+
+Called when registering the plugin.
+Accepts the following optional parameters:
+
+=over 2
+
+=item C<url>
+
+URL of your BlogSpam instance.
+Defaults to C<http://test.blogspam.net/>.
+
+=item C<port>
+
+Port of your BlogSpam instance.
+Defaults to C<8888>.
+
+=item C<site>
+
+The name of your site to monitor.
+
+=item C<log>
+
+A path to a log file.
+
+=item C<log_level>
+
+The level of logging, based on L<Mojo::Log>.
+Spam is logged as C<info>, errors are logged as C<error>.
+
+=back
+
+
+=head1 HELPERS
+
+=head2 C<blogspam>
+
+  # In controller:
+  my $bs = $c->blogspam(
+    comment => 'This is a comment to test the system',
+    name => 'Akron'
+  );
+
+Returns a blogspam object, based on the given attributes.
+
+
+=head1 OBJECT ATTRIBUTES
+
+These attributes are primarily based on
+the L<BlogSpam API|http://blogspam.net/api>.
+
+=head2 C<agent>
+
+  $bs->agent('Mozilla/5.0 (X11; Linux x86_64; rv:12.0) ...');
+  my $agent = $bs->agent;
+
+The user-agent sending the comment.
+Defaults to the user-agent of the request.
+
+
+=head2 C<comment>
+
+  $bs->comment('This is just a test comment');
+  my $comment_text = $bs->comment;
+
+The comment text.
+
+
+=head2 C<email>
+
+  $bs->email('spammer@sojolicio.us');
+  my $email = $bs->email;
+
+The email address of the commenter.
+
+
+=head2 C<hash>
+
+  my $hash = $bs->hash;
+
+Returns the hash representation of the comment.
+
+
+=head2 C<ip>
+
+  $bs->ip('192.168.0.1');
+  my $ip = $bs->ip;
+
+The ip address of the commenter.
+Defaults to the ip address of the request.
+Supports C<X-Forwarded-For> proxy information.
+
+
+=head2 C<link>
+
+  $bs->link('http://grimms-abenteuer.de/');
+  my $link = $bs->link;
+
+Homepage link given by the commenter.
+
+
+=head2 C<name>
+
+  $bs->name('Akron');
+  my $name = $bs->name;
+
+Name given by the commenter.
+
+
+=head2 C<subject>
+
+  $bs->subject('Fun');
+  my $subject = $bs->subject;
+
+Subject given by the commenter.
+
+
+=head1 OBJECT METHODS
+
+These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
+
+=head2 C<test_comment>
+
+  if ($bs->test_comment(
+         mandatory => 'name',
+         blacklist => ['192.168.0.1'])
+     ) {
+    print 'ham!';
+  } else {
+    print 'spam!';
+  };
+
+Test the comment of the blogspam object for spam or ham.
+It's necessary to have a defined comment text and ip address.
+The method returns C<undef> in case the comment is detected
+as spam, C<1> if the comment is detected as ham and C<-1>
+if something went horribly, horribly wrong.
+Accepts additional option parameters as defined in the
+L<BlogSpam API|http://blogspam.net/api>.
+
+All option parameters accepts strings or array references.
+
+=over 2
+
+=item C<blacklist>
+
+Blacklist an IP or an array reference of IPs.
+This can be either a literal IP address ("192.168.0.1")
+or a CIDR range ("192.168.0.1/8").
+
+=item C<exclude>
+
+Exclude a plugin or an array reference of plugins from testing.
+See C<get_plugins> for installed plugins of the BlogSpam instance.
+
+=item C<fail>
+
+Boolean flag that will, if set, return every comment as C<spam>.
+
+=item C<mandatory>
+
+Define an attribute or an array reference of attributes
+of the blogspam object, that are mandatory
+(e.g. "name" or "subject").
+
+=item C<max-links>
+
+The maximum number of links contained in the comment.
+This defaults to 10.
+
+=item C<max-size>
+
+The maximum size of the comment text, given as a
+byte expression (e.g. "2k").
+
+=item C<min-size>
+
+The minimum size of the comment text, given as a
+byte expression (e.g. "2k").
+
+=item C<min-words>
+
+The minimum number of words oft the comment text.
+Defaults to 4.
+
+=item C<whitelist>
+
+Whitelist an IP or an array reference of IPs.
+This can be either a literal IP address ("192.168.0.1")
+or a CIDR range ("192.168.0.1/8").
+
+=back
+
+
+=head2 C<classify_comment>
+
+  $bs->classify_comment('ok');
+
+Train the blogspam instance based on your
+comment definition as C<ok> or C<spam>.
+This may help to improve the spam detection.
+Expects a defined C<comment> attribute and
+a single parameter, either C<ok> or C<spam>.
+
+
+=head2 C<get_plugins>
+
+  my @plugins = $bs->plugins;
+
+Requests a list of plugins installed at the blogspam instance.
+
+
+=head2 C<get_stats>
+
+  my $stats = $bs->get_stats;
+  my $stats = $bs->get_stats('http://sojolicio.us/');
+
+Requests a hash reference of statistics for your site
+regarding the number of comments detected as C<ok> or C<spam>.
+If no C<site> attribute is given (whether as a parameter or when
+registering the plugin), this will return undef.
+
+
+=head1 TODO
+
+Allow for defining options when registering this plugin.
+
+
+=head1 DEPENDENCIES
+
+L<Mojolicious>.
+
+
+=head1 SEE ALSO
+
+L<Blog::Spam>,
+L<http://blogspam.net/api>.
+
+
+=head1 AVAILABILITY
+
+  https://github.com/Akron/Mojolicious-Plugin-BlogSpam
+
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2012, Nils Diewald.
+
+This program is free software, you can redistribute it
+and/or modify it under the same terms as Perl.
+
+The API definition as well as the BlogSpam API code were
+written and defined by Steve Kemp.
+
+Be aware that information of your users may be send
+to a third party.
+This should be noted in your privacy policy if you
+use a foreign BlogSpam instance.
+
+=cut
