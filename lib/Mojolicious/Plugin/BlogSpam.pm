@@ -9,8 +9,10 @@ use Scalar::Util qw/weaken/;
 our $VERSION = '0.01';
 
 # Todo: Allow for options hashing on registration
+#       (especially for disabled plugins)
+# Todo: Make this work asynchronous!
+# Todo: Allow for configuration files.
 
-has [qw/url site/];
 
 # Register plugin
 sub register {
@@ -24,11 +26,8 @@ sub register {
   # Set port of BlogSpam instance
   $url->port(delete $params->{port} || '8888');
 
-  # Server url
-  $plugin->url($url);
-
   # Site name
-  $plugin->site(delete $params->{site});
+  my $site = delete $params->{site};
 
   # Add Log
   my $log;
@@ -46,10 +45,11 @@ sub register {
     blogspam => sub {
       my $c = shift;
       my $obj = Mojolicious::Plugin::BlogSpam::Comment->new(
-	url  => $url,
-	log  => $log,
-	site => $plugin->site,
-	app  => $app_clone,
+	url    => $url,
+	log    => $log,
+	site   => $site,
+	app    => $app_clone,
+	client => __PACKAGE__ . ' v' . $VERSION,
 	@_
       );
 
@@ -241,7 +241,7 @@ sub get_stats {
 sub hash {
   my $self = shift;
   my %hash = %$self;
-  delete @hash{qw/site app url log/};
+  delete @hash{qw/site app url log client/};
   return { map {$_ => $hash{$_} } grep { $hash{$_} } keys %hash };
 };
 
@@ -289,7 +289,10 @@ sub _xml_rpc_call {
   my ($method_name, $param) = @_;
 
   # Create user agent
-  my $ua = Mojo::UserAgent->new(max_redirects => 3);
+  my $ua = Mojo::UserAgent->new(
+    max_redirects => 3,
+    name => $self->{client}
+  );
 
   # Start xml document
   my $xml = '<?xml version="1.0"?>'.
@@ -380,7 +383,8 @@ Mojolicious::Plugin::BlogSpam - Test your comments using BlogSpam
 
 L<Mojolicious::Plugin::BlogSpam> is a simple plugin to test
 comments or posts for spam against a
-L<BlogSpam|http://blogspam.net/> instance.
+L<BlogSpam|http://blogspam.net/> instance
+(see L<Blog::Spam::API> for the codebase).
 
 
 =head1 METHODS
@@ -483,7 +487,7 @@ The email address of the commenter.
 
   my $hash = $bs->hash;
 
-Returns the hash representation of the comment.
+Returns a hash representation of the comment.
 
 
 =head2 C<ip>
@@ -628,8 +632,11 @@ registering the plugin), this will return undef.
 
 =head1 TODO
 
-Allow for defining options when registering this plugin.
+- Allow for defining options when registering this plugin.
 
+- Make this work asynchronously.
+
+- Allow for configuration files.
 
 =head1 DEPENDENCIES
 

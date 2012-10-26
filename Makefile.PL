@@ -9,7 +9,8 @@ WriteMakefile(
     NAME         => 'Mojolicious::Plugin::BlogSpam',
     AUTHOR       => 'Nils Diewald',
     PREREQ_PM => {
-        'Mojolicious' => 3.43
+        'Mojolicious' => 3.43,
+	'Scalar::Util' => 1.20
     },
     test => {TESTS => 't/*.t t/*/*.t t/*/*/*.t t/*/*/*/*.t'}
 );

@@ -31,7 +31,8 @@ Mojolicious::Plugin::BlogSpam - Test your comments using BlogSpam
 
 L<Mojolicious::Plugin::BlogSpam> is a simple plugin to test
 comments or posts for spam against a
-L<BlogSpam|http://blogspam.net/> instance.
+L<BlogSpam|http://blogspam.net/> instance
+(see L<Blog::Spam::API> for the codebase).
 
 
 =head1 METHODS
@@ -134,7 +135,7 @@ The email address of the commenter.
 
   my $hash = $bs->hash;
 
-Returns the hash representation of the comment.
+Returns a hash representation of the comment.
 
 
 =head2 C<ip>
@@ -279,8 +280,11 @@ registering the plugin), this will return undef.
 
 =head1 TODO
 
-Allow for defining options when registering this plugin.
+- Allow for defining options when registering this plugin.
 
+- Make this work asynchronously.
+
+- Allow for configuration files.
 
 =head1 DEPENDENCIES
 

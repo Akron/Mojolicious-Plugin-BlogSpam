@@ -85,4 +85,3 @@ ok($bs->get_plugins > 3, 'get_plugins');
 ok($bs->test_comment, 'test_comment');
 ok($bs->classify_comment('ok'), 'classify_comment');
 ok($bs->get_stats('http://grimms-abenteuer.de/'), 'get_stats');
-
