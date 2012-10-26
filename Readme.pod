@@ -98,7 +98,7 @@ Spam is logged as C<info>, errors are logged as C<error>.
     name => 'Akron'
   );
 
-Returns a blogspam object, based on the given attributes.
+Returns a new blogspam object, based on the given attributes.
 
 
 =head1 OBJECT ATTRIBUTES
@@ -195,8 +195,6 @@ if something went horribly, horribly wrong.
 Accepts additional option parameters as defined in the
 L<BlogSpam API|http://blogspam.net/api>.
 
-All option parameters accepts strings or array references.
-
 =over 2
 
 =item C<blacklist>
@@ -216,8 +214,8 @@ Boolean flag that will, if set, return every comment as C<spam>.
 
 =item C<mandatory>
 
-Define an attribute or an array reference of attributes
-of the blogspam object, that are mandatory
+Define an attribute (or an array reference of attributes)
+of the blogspam object, that is mandatory
 (e.g. "name" or "subject").
 
 =item C<max-links>
@@ -237,7 +235,7 @@ byte expression (e.g. "2k").
 
 =item C<min-words>
 
-The minimum number of words oft the comment text.
+The minimum number of words of the comment text.
 Defaults to 4.
 
 =item C<whitelist>
@@ -253,7 +251,7 @@ or a CIDR range ("192.168.0.1/8").
 
   $bs->classify_comment('ok');
 
-Train the blogspam instance based on your
+Train the BlogSpam instance based on your
 comment definition as C<ok> or C<spam>.
 This may help to improve the spam detection.
 Expects a defined C<comment> attribute and
@@ -264,7 +262,7 @@ a single parameter, either C<ok> or C<spam>.
 
   my @plugins = $bs->plugins;
 
-Requests a list of plugins installed at the blogspam instance.
+Requests a list of plugins installed at the BlogSpam instance.
 
 
 =head2 C<get_stats>
@@ -294,7 +292,7 @@ L<Mojolicious>.
 =head1 SEE ALSO
 
 L<Blog::Spam::API>,
-L<http://blogspam.net/api>.
+L<http://blogspam.net/>.
 
 
 =head1 AVAILABILITY
