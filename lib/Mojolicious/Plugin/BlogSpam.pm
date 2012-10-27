@@ -45,7 +45,7 @@ sub register {
     blogspam => sub {
       my $c = shift;
       my $obj = Mojolicious::Plugin::BlogSpam::Comment->new(
-	url    => $url,
+	url    => $url->to_string,
 	log    => $log,
 	site   => $site,
 	app    => $app_clone,
@@ -83,10 +83,10 @@ sub register {
 package Mojolicious::Plugin::BlogSpam::Comment;
 use Mojo::Base -base;
 
+# 'fail' is special
 our @OPTION_ARRAY =
   qw/blacklist exclude whitelist mandatory
      max-links max-size min-size min-words/;
-# 'fail' is special
 
 has [qw/comment ip email link name subject agent/];
 
@@ -541,7 +541,7 @@ These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
 
 Test the comment of the blogspam object for spam or ham.
 It's necessary to have a defined comment text and ip address.
-The method returns C<undef> in case the comment is detected
+The method returns nothing in case the comment is detected
 as spam, C<1> if the comment is detected as ham and C<-1>
 if something went horribly, horribly wrong.
 Accepts additional option parameters as defined in the
@@ -625,7 +625,7 @@ Requests a list of plugins installed at the BlogSpam instance.
 Requests a hash reference of statistics for your site
 regarding the number of comments detected as C<ok> or C<spam>.
 If no C<site> attribute is given (whether as a parameter or when
-registering the plugin), this will return undef.
+registering the plugin), this will return nothing.
 
 
 =head1 TODO
