@@ -292,8 +292,6 @@ registering the plugin), this will return nothing.
 
 - Make this work asynchronously.
 
-- Allow for configuration files.
-
 
 =head1 DEPENDENCIES
 
