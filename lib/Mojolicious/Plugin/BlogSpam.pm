@@ -9,7 +9,6 @@ use Scalar::Util qw/weaken/;
 our $VERSION = '0.02';
 
 # Todo: Make this work asynchronous!
-# Todo: Allow for configuration files.
 
 # 'fail' is a special flag
 our @OPTION_ARRAY =
@@ -671,8 +670,6 @@ registering the plugin), this will return nothing.
 =head1 TODO
 
 - Make this work asynchronously.
-
-- Allow for configuration files.
 
 
 =head1 DEPENDENCIES
