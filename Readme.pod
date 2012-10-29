@@ -45,17 +45,24 @@ L<BlogSpam|http://blogspam.net/> instance
     port => '8888',
     site => 'http://grimms-abenteuer.de/',
     log  => '/spam.log',
-    log_level => 'debug'
+    log_level => 'debug',
+    exclude   => 'badip',
+    mandatory => [qw/name subject/]
   });
 
   # Mojolicious::Lite
   plugin 'BlogSpam' => {
-    url  => 'blogspam.sojolicio.us',
-    port => '8888',
-    site => 'http://grimms-abenteuer.de/',
-    log  => '/spam.log',
-    log_level => 'debug'
+    site => 'http://grimms-abenteuer.de/'
   };
+
+  # Or in your config file
+  {
+    BlogSpam => {
+      url => 'blogspam.sojolicio.us',
+      site => 'http://grimms-abenteuer.de/',
+      port => '8888'
+    }
+  }
 
 Called when registering the plugin.
 Accepts the following optional parameters:
@@ -86,6 +93,11 @@ The level of logging, based on L<Mojo::Log>.
 Spam is logged as C<info>, errors are logged as C<error>.
 
 =back
+
+In addition to these parameters, additional option parameters
+are allowed as defined in the
+L<BlogSpam API|http://blogspam.net/api>.
+See L</"test_command"> method below.
 
 
 =head1 HELPERS
@@ -278,11 +290,10 @@ registering the plugin), this will return nothing.
 
 =head1 TODO
 
-- Allow for defining options when registering this plugin.
-
 - Make this work asynchronously.
 
 - Allow for configuration files.
+
 
 =head1 DEPENDENCIES
 

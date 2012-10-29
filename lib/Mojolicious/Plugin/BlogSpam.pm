@@ -6,17 +6,25 @@ use Mojo::Log;
 use Mojo::UserAgent;
 use Scalar::Util qw/weaken/;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
-# Todo: Allow for options hashing on registration
-#       (especially for disabled plugins)
 # Todo: Make this work asynchronous!
 # Todo: Allow for configuration files.
+
+# 'fail' is a special flag
+our @OPTION_ARRAY =
+  qw/blacklist exclude whitelist mandatory
+     max-links max-size min-size min-words/;
 
 
 # Register plugin
 sub register {
   my ($plugin, $mojo, $params) = @_;
+
+  # Load parameter from Config file
+  if (my $config_param = $mojo->config('BlogSpam')) {
+    $params = { %$config_param, %$params };
+  };
 
   # Set server url of BlogSpam instance
   my $url = Mojo::URL->new(
@@ -41,6 +49,14 @@ sub register {
   my $app_clone = $mojo;
   weaken $app_clone;
 
+  # Get option defaults
+  my (%options, $base_options);
+  foreach ('fail', @OPTION_ARRAY) {
+    $options{$_} = delete $params->{$_} if $params->{$_};
+  };
+  $base_options = \%options if %options;
+
+  # Add 'blogspam' helper
   $mojo->helper(
     blogspam => sub {
       my $c = shift;
@@ -50,6 +66,7 @@ sub register {
 	site   => $site,
 	app    => $app_clone,
 	client => __PACKAGE__ . ' v' . $VERSION,
+	base_options => $base_options,
 	@_
       );
 
@@ -82,11 +99,6 @@ sub register {
 # BlogSpam object class
 package Mojolicious::Plugin::BlogSpam::Comment;
 use Mojo::Base -base;
-
-# 'fail' is special
-our @OPTION_ARRAY =
-  qw/blacklist exclude whitelist mandatory
-     max-links max-size min-size min-words/;
 
 has [qw/comment ip email link name subject agent/];
 
@@ -145,16 +157,17 @@ sub test_comment {
   if (my $log = $self->{log}) {
 
     # Serialize comment
-    my $json = Mojo::JSON->new->encode($self->hash);
+    my $msg = "[$1]: " . ($2 || '') . ' ' .
+      Mojo::JSON->new->encode($self->hash);
 
     # Log error
     if ($1 eq 'ERROR') {
-      $log->error("[$1]: " . ($2 || '') . ' ' . $json);
+      $log->error($msg);
     }
 
     # Log spam
     else {
-      $log->info("[$1]: " . ($2 || '') . ' ' . $json);
+      $log->info($msg);
     };
   };
 
@@ -191,8 +204,7 @@ sub classify_comment {
 };
 
 
-# Get a list of plugins
-# installed at the BlogSpam instance
+# Get a list of plugins installed at the BlogSpam instance
 sub get_plugins {
   my $self = shift;
 
@@ -211,7 +223,7 @@ sub get_plugins {
 };
 
 
-# Get statistics of your site from the instance
+# Get statistics of your site from the BlogSpam instance
 sub get_stats {
   my $self = shift;
   my $site = shift || $self->{site};
@@ -241,7 +253,11 @@ sub get_stats {
 sub hash {
   my $self = shift;
   my %hash = %$self;
-  delete @hash{qw/site app url log client/};
+
+  # Delete non-comment info
+  delete @hash{qw/site app url log client base_options/};
+
+  # Delete empty values
   return { map {$_ => $hash{$_} } grep { $hash{$_} } keys %hash };
 };
 
@@ -253,33 +269,45 @@ sub _options {
 
   # Create option string
   my @options;
-  if (%options) {
+  if (%options || $self->{base_options}) {
+
+    # Get base options from plugin registration
+    my $base = $self->{base_options};
 
     # Check for fail flag
-    if (exists $options{fail} && $options{fail}) {
+    if (exists $options{fail}) {
+      push(@options, 'fail') if $options{fail};
+    }
+
+    # Check for fail flag in plugin defaults
+    elsif ($base->{fail}) {
       push(@options, 'fail');
     };
 
     # Check for valid option parameters
-    foreach my $n (@OPTION_ARRAY) {
+    foreach my $n (@Mojolicious::Plugin::BlogSpam::OPTION_ARRAY) {
 
       # Option flag is not set
-      next unless $options{$n};
+      next unless $options{$n} || $base->{$n};
 
-      # Option flag is set as a string
-      unless (ref $options{$n}) {
-	push(@options, $n . '=' . $options{$n});
-      }
+      # Base options
+      my $opt = [
+	$base->{$n} ? (ref $base->{$n} ? @{$base->{$n}} : $base->{$n}) : ()
+      ];
+
+      # Push new options
+      push(
+	@$opt,
+	$options{$n} ? (ref $options{$n} ? @{$options{$_}} : $options{$n}) : ()
+      );
 
       # Option flag is set as an array
-      else {
-	push(@options, $n . '=' . $_) foreach @{$options{$n}};
-      };
-    };
+      push(@options, "$n=$_") foreach @$opt};
   };
 
-  # Set option string as parameter
+  # return option string
   return join(',', @options) if @options;
+  return;
 };
 
 
@@ -295,7 +323,7 @@ sub _xml_rpc_call {
   );
 
   # Start xml document
-  my $xml = '<?xml version="1.0"?>'.
+  my $xml = '<?xml version="1.0"?>' .
     "<methodCall><methodName>$method_name</methodName>";
 
   # Send with params
@@ -309,7 +337,7 @@ sub _xml_rpc_call {
       # Create struct object
       foreach (keys %$param) {
 	$xml .= "<member><name>$_</name><value>" .
-                '<string>' . $param->{$_} . '</string>' .
+	        '<string>' . $param->{$_} . '</string>' .
 	        "</value></member>\n" if $param->{$_};
       };
 
@@ -397,17 +425,24 @@ L<BlogSpam|http://blogspam.net/> instance
     port => '8888',
     site => 'http://grimms-abenteuer.de/',
     log  => '/spam.log',
-    log_level => 'debug'
+    log_level => 'debug',
+    exclude   => 'badip',
+    mandatory => [qw/name subject/]
   });
 
   # Mojolicious::Lite
   plugin 'BlogSpam' => {
-    url  => 'blogspam.sojolicio.us',
-    port => '8888',
-    site => 'http://grimms-abenteuer.de/',
-    log  => '/spam.log',
-    log_level => 'debug'
+    site => 'http://grimms-abenteuer.de/'
   };
+
+  # Or in your config file
+  {
+    BlogSpam => {
+      url => 'blogspam.sojolicio.us',
+      site => 'http://grimms-abenteuer.de/',
+      port => '8888'
+    }
+  }
 
 Called when registering the plugin.
 Accepts the following optional parameters:
@@ -438,6 +473,11 @@ The level of logging, based on L<Mojo::Log>.
 Spam is logged as C<info>, errors are logged as C<error>.
 
 =back
+
+In addition to these parameters, additional option parameters
+are allowed as defined in the
+L<BlogSpam API|http://blogspam.net/api>.
+See L</"test_command"> method below.
 
 
 =head1 HELPERS
@@ -630,11 +670,10 @@ registering the plugin), this will return nothing.
 
 =head1 TODO
 
-- Allow for defining options when registering this plugin.
-
 - Make this work asynchronously.
 
 - Allow for configuration files.
+
 
 =head1 DEPENDENCIES
 

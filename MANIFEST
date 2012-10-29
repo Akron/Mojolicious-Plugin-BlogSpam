@@ -1,0 +1,6 @@
+lib/Mojolicious/Plugin/BlogSpam.pm
+t/blogspam.t
+Changes
+MANIFEST
+LICENSE
+Makefile.PL

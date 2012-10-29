@@ -1,2 +1,6 @@
+0.02 2012-10-28
+        - Allow for defining options on registering.
+	- Allow for defining register parameters in Config file.
+
 0.01 2012-10-25
         - Initial submission to GitHub.

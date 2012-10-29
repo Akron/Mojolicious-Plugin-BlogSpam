@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 use Test::Mojo;
-use Test::More tests => 17;
+use Test::More tests => 21;
 use Mojolicious::Lite;
 $|++;
 use lib '../lib';
@@ -13,6 +13,8 @@ $app->mode('production');
 
 $app->plugin('BlogSpam' => {
   site => 'http://grimms-abenteuer.de/',
+  exclude => 'badip',
+  mandatory => [qw/subject name/]
 });
 
 my $bs;
@@ -78,6 +80,12 @@ ok($bs = $c->blogspam(
 ), 'Blogspam');
 
 is($bs->ip, '192.168.0.2', 'X-Forwarded-For');
+
+my $opt = $bs->_options(mandatory => 'email');
+like($opt, qr/exclude=badip/,     'Option String 1');
+like($opt, qr/mandatory=subject/, 'Option String 2');
+like($opt, qr/mandatory=name/,    'Option String 3');
+like($opt, qr/mandatory=email/,   'Option String 4');
 
 __END__
 
