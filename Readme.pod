@@ -23,16 +23,22 @@ Mojolicious::Plugin::BlogSpam - Test your comments using BlogSpam
     print "Your comment is no spam!\n";
   };
 
+  # Even non-blocking
+  $blogspam->test_comment(sub {
+    print "Your comment is no spam!\n" if shift;
+  });
+
   # Train the system
   $blogspam->classify_comment('ok');
 
 
 =head1 DESCRIPTION
 
-L<Mojolicious::Plugin::BlogSpam> is a simple plugin to test
+L<Mojolicious::Plugin::BlogSpam> is a simple to test
 comments or posts for spam against a
 L<BlogSpam|http://blogspam.net/> instance
 (see L<Blog::Spam::API> for the codebase).
+It supports blocking as well as non-blocking requests.
 
 
 =head1 METHODS
@@ -190,6 +196,7 @@ These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
 
 =head2 C<test_comment>
 
+  # Blocking
   if ($bs->test_comment(
          mandatory => 'name',
          blacklist => ['192.168.0.1'])
@@ -198,6 +205,16 @@ These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
   } else {
     print 'spam!';
   };
+
+  # Non-blocking
+  $bs->test_comment(
+    mandatory => 'name',
+    blacklist => ['192.168.0.1'],
+    sub {
+      my $result = shift;
+      print ($result ? 'Ham!' : 'Spam!');
+    }
+  );
 
 Test the comment of the blogspam object for spam or ham.
 It's necessary to have a defined comment text and ip address.
@@ -258,10 +275,18 @@ or a CIDR range ("192.168.0.1/8").
 
 =back
 
+For a non-blocking request, append a callback function.
+The parameters of the callback are identical to the methods
+return values in blocking requests.
+
 
 =head2 C<classify_comment>
 
   $bs->classify_comment('ok');
+  $bs->classify_comment('ok' => sub {
+    print 'Done!';
+  });
+
 
 Train the BlogSpam instance based on your
 comment definition as C<ok> or C<spam>.
@@ -269,28 +294,40 @@ This may help to improve the spam detection.
 Expects a defined C<comment> attribute and
 a single parameter, either C<ok> or C<spam>.
 
+For a non-blocking request, append a callback function.
+The parameters of the callback are identical to the methods
+return values in blocking requests.
+
 
 =head2 C<get_plugins>
 
-  my @plugins = $bs->plugins;
+  my @plugins = $bs->get_plugins;
+  $bs->get_plugins(sub {
+    print join ', ', @_;
+  });
 
 Requests a list of plugins installed at the BlogSpam instance.
 
+For a non-blocking request, append a callback function.
+The parameters of the callback are identical to the methods
+return values in blocking requests.
 
 =head2 C<get_stats>
 
   my $stats = $bs->get_stats;
   my $stats = $bs->get_stats('http://sojolicio.us/');
+  $bs->get_stats(sub {
+    my $stats = shift;
+  });
 
 Requests a hash reference of statistics for your site
 regarding the number of comments detected as C<ok> or C<spam>.
 If no C<site> attribute is given (whether as a parameter or when
 registering the plugin), this will return nothing.
 
-
-=head1 TODO
-
-- Make this work asynchronously.
+For a non-blocking request, append a callback function.
+The parameters of the callback are identical to the methods
+return values in blocking requests.
 
 
 =head1 DEPENDENCIES

@@ -1,3 +1,6 @@
+0.03 2012-11-01
+        - Now all methods are blocking as well as non-blocking.
+
 0.02 2012-10-28
         - Allow for defining options on registering.
 	- Allow for defining register parameters in Config file.

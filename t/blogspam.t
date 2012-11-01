@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 use Test::Mojo;
-use Test::More tests => 21;
+use Test::More;
 use Mojolicious::Lite;
 $|++;
 use lib '../lib';
@@ -87,9 +87,46 @@ like($opt, qr/mandatory=subject/, 'Option String 2');
 like($opt, qr/mandatory=name/,    'Option String 3');
 like($opt, qr/mandatory=email/,   'Option String 4');
 
-__END__
+done_testing;
+
+exit;
+
+# New object:
+$t = Test::Mojo->new;
+$app = $t->app;
+$app->mode('production');
+
+
+$app->plugin('BlogSpam' => {
+  site => 'http://grimms-abenteuer.de/',
+});
+
+ok($bs = $c->blogspam(
+  comment => 'This is a test post'
+), 'Blogspam');
 
 ok($bs->get_plugins > 3, 'get_plugins');
 ok($bs->test_comment, 'test_comment');
 ok($bs->classify_comment('ok'), 'classify_comment');
 ok($bs->get_stats('http://grimms-abenteuer.de/'), 'get_stats');
+
+$bs->test_comment(
+  sub {
+    my $result = shift;
+    ok($result, 'Async Test 1 - test_comment');
+  });
+
+$bs->classify_comment(
+  'ok' => sub {
+    ok(shift(@_), 'Async Test 2 - classify_comment');
+  });
+
+$bs->get_stats(
+  'http://grimms-abenteuer.de/' => sub {
+    ok(shift(@_), 'Async Test 3 - get_stats');
+  });
+
+$bs->get_plugins(sub {
+   ok(@_ > 3, 'Async Test 4 - get_plugins');
+  });
+

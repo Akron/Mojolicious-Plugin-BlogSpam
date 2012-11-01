@@ -6,9 +6,9 @@ use Mojo::Log;
 use Mojo::UserAgent;
 use Scalar::Util qw/weaken/;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
-# Todo: Make this work asynchronous!
+# Todo: Check for blacklist/whitelist/mandatory/max words etc. yourself.
 
 # 'fail' is a special flag
 our @OPTION_ARRAY =
@@ -19,6 +19,8 @@ our @OPTION_ARRAY =
 # Register plugin
 sub register {
   my ($plugin, $mojo, $params) = @_;
+
+  $params ||= {};
 
   # Load parameter from Config file
   if (my $config_param = $mojo->config('BlogSpam')) {
@@ -106,6 +108,9 @@ has [qw/comment ip email link name subject agent/];
 sub test_comment {
   my $self = shift;
 
+  # Callback for async
+  my $cb = pop if $_[-1] && ref $_[-1] && ref $_[-1] eq 'CODE';
+
   unless ($self->ip && $self->comment) {
     $self->{app}->log->debug('You have to specify ip and comment');
     return;
@@ -115,7 +120,8 @@ sub test_comment {
   my $option_string = $self->_options(@_);
 
   # Check for mandatory parameters
-  while ($option_string =~ m/(?:^|,)mandatory=([^,]+?)(?:,|$)/g) {
+  while ($option_string &&
+	   $option_string =~ m/(?:^|,)mandatory=([^,]+?)(?:,|$)/g) {
     return unless $self->{$1};
   };
 
@@ -126,12 +132,37 @@ sub test_comment {
   push(@options, site => $self->{site}) if $self->{site};
 
   # Make xml-rpc call
+  if ($cb) {
+
+    # Make call non-blocking
+    $self->_xml_rpc_call(
+      testComment => (
+	%{$self->hash},
+	@options
+      ) => sub {
+	return $cb->( $self->_handle_test_response( shift ) );
+      }
+    );
+
+    return -1;
+  };
+
+  # Make call blocking
   my $res = $self->_xml_rpc_call(
     testComment => (
       %{$self->hash},
       @options
     )
   );
+
+  return $self->_handle_test_response($res);
+};
+
+
+# Handle test_comment response
+sub _handle_test_response {
+  my $self = shift;
+  my $res  = shift;
 
   # No response
   return -1 unless $res;
@@ -183,6 +214,9 @@ sub classify_comment {
   my $self = shift;
   my $train = shift;
 
+  # Callback for async
+  my $cb = pop if $_[-1] && ref $_[-1] && ref $_[-1] eq 'CODE';
+
   # Missing comment and valid train option
   unless ($self->comment && $train && $train =~ /^(?:ok|spam)$/) {
     $self->{app}->log->debug('You have to specify comment and train');
@@ -193,6 +227,19 @@ sub classify_comment {
   my @site = (site => $self->{site}) if $self->{site};
 
   # Send xml-rpc call
+  if ($cb) {
+    $self->_xml_rpc_call(classifyComment => (
+      %{$self->hash},
+      train => $train,
+      @site => sub {
+	my $res = shift;
+	$cb->($res ? 1 : 0);
+      }
+    ));
+
+    return;
+  };
+
   return 1 if $self->_xml_rpc_call(classifyComment => (
     %{$self->hash},
     train => $train,
@@ -207,8 +254,32 @@ sub classify_comment {
 sub get_plugins {
   my $self = shift;
 
+  # Callback for async
+  my $cb = pop if $_[-1] && ref $_[-1] && ref $_[-1] eq 'CODE';
+
   # Response of xml-rpc call
+  if ($cb) {
+
+    # Non-blocking request
+    $self->_xml_rpc_call(
+      getPlugins => sub {
+	my $res = shift;
+	return $cb->($self->_handle_plugins_response($res));
+      });
+
+    return ();
+  };
+
+  # Blocking request
   my $res = $self->_xml_rpc_call('getPlugins');
+  return $self->_handle_plugins_response($res);
+};
+
+
+# Handle get_plugins response
+sub _handle_plugins_response {
+  my $self = shift;
+  my $res = shift;
 
   # Retrieve result
   my $array =
@@ -225,13 +296,38 @@ sub get_plugins {
 # Get statistics of your site from the BlogSpam instance
 sub get_stats {
   my $self = shift;
+
+  # Callback for async
+  my $cb = pop if $_[-1] && ref $_[-1] && ref $_[-1] eq 'CODE';
+
   my $site = shift || $self->{site};
 
   # No site is given
   return unless $site;
 
   # Send xml-rpc call
+  if ($cb) {
+
+    # Send non-blocking request
+    my $res = $self->_xml_rpc_call(
+      'getStats', $site => sub {
+	my $res = shift;
+	return $cb->($self->_handle_stats_response($res));
+      });
+
+    return;
+  };
+
+  # Send blocking request
   my $res = $self->_xml_rpc_call('getStats', $site);
+  return $self->_handle_stats_response($res);
+};
+
+
+# Handle get_stats response
+sub _handle_stats_response {
+  my $self = shift;
+  my $res = shift;
 
   # Get response struct
   my $hash =
@@ -313,6 +409,10 @@ sub _options {
 # Send xml-rpc call
 sub _xml_rpc_call {
   my $self = shift;
+
+  # Callback for async
+  my $cb = pop if ref $_[-1] && ref $_[-1] eq 'CODE';
+
   my ($method_name, $param) = @_;
 
   # Create user agent
@@ -354,16 +454,37 @@ sub _xml_rpc_call {
   $xml .= '</methodCall>';
 
   # Post method call to BlogSpam instance
+  if ($cb) {
+
+    # Post non-blocking
+    $ua->post(
+      $self->{url} => {} => $xml => sub {
+	my $tx = pop;
+
+	my $res = $tx->success;
+
+	# Connection failure - accept comment
+	unless ($res) {
+	  $self->_log_error($tx);
+	  return;
+	};
+
+	# Send response to callback
+	$cb->($res);
+	$ua = undef;
+      });
+    Mojo::IOLoop->start unless Mojo::IOLoop->is_running;
+
+    return;
+  };
+
+  # Post blocking
   my $tx = $ua->post($self->{url} => {} => $xml);
   my $res = $tx->success;
 
   # Connection failure - accept comment
   unless ($res) {
-    my ($err, $code) = $tx->error;
-    $self->app->log->warn(
-      'Connection error: [' . ($code || '*') . "] $code " .
-	'for ' . $self->{url}->to_string
-      );
+    $self->_log_error($tx);
     return;
   };
 
@@ -371,6 +492,20 @@ sub _xml_rpc_call {
   return $res;
 };
 
+
+# Log connection_error
+sub _log_error {
+  my $self = shift;
+  my $tx = shift;
+
+  my ($err, $code) = $tx->error;
+  $self->{app}->log->warn(
+    'Connection error: [' . ($code || '*') . "] $code " .
+      'for ' . $self->{url}
+    );
+
+  return;
+};
 
 1;
 
@@ -402,16 +537,22 @@ Mojolicious::Plugin::BlogSpam - Test your comments using BlogSpam
     print "Your comment is no spam!\n";
   };
 
+  # Even non-blocking
+  $blogspam->test_comment(sub {
+    print "Your comment is no spam!\n" if shift;
+  });
+
   # Train the system
   $blogspam->classify_comment('ok');
 
 
 =head1 DESCRIPTION
 
-L<Mojolicious::Plugin::BlogSpam> is a simple plugin to test
+L<Mojolicious::Plugin::BlogSpam> is a simple to test
 comments or posts for spam against a
 L<BlogSpam|http://blogspam.net/> instance
 (see L<Blog::Spam::API> for the codebase).
+It supports blocking as well as non-blocking requests.
 
 
 =head1 METHODS
@@ -569,6 +710,7 @@ These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
 
 =head2 C<test_comment>
 
+  # Blocking
   if ($bs->test_comment(
          mandatory => 'name',
          blacklist => ['192.168.0.1'])
@@ -577,6 +719,16 @@ These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
   } else {
     print 'spam!';
   };
+
+  # Non-blocking
+  $bs->test_comment(
+    mandatory => 'name',
+    blacklist => ['192.168.0.1'],
+    sub {
+      my $result = shift;
+      print ($result ? 'Ham!' : 'Spam!');
+    }
+  );
 
 Test the comment of the blogspam object for spam or ham.
 It's necessary to have a defined comment text and ip address.
@@ -637,10 +789,18 @@ or a CIDR range ("192.168.0.1/8").
 
 =back
 
+For a non-blocking request, append a callback function.
+The parameters of the callback are identical to the methods
+return values in blocking requests.
+
 
 =head2 C<classify_comment>
 
   $bs->classify_comment('ok');
+  $bs->classify_comment('ok' => sub {
+    print 'Done!';
+  });
+
 
 Train the BlogSpam instance based on your
 comment definition as C<ok> or C<spam>.
@@ -648,28 +808,40 @@ This may help to improve the spam detection.
 Expects a defined C<comment> attribute and
 a single parameter, either C<ok> or C<spam>.
 
+For a non-blocking request, append a callback function.
+The parameters of the callback are identical to the methods
+return values in blocking requests.
+
 
 =head2 C<get_plugins>
 
-  my @plugins = $bs->plugins;
+  my @plugins = $bs->get_plugins;
+  $bs->get_plugins(sub {
+    print join ', ', @_;
+  });
 
 Requests a list of plugins installed at the BlogSpam instance.
 
+For a non-blocking request, append a callback function.
+The parameters of the callback are identical to the methods
+return values in blocking requests.
 
 =head2 C<get_stats>
 
   my $stats = $bs->get_stats;
   my $stats = $bs->get_stats('http://sojolicio.us/');
+  $bs->get_stats(sub {
+    my $stats = shift;
+  });
 
 Requests a hash reference of statistics for your site
 regarding the number of comments detected as C<ok> or C<spam>.
 If no C<site> attribute is given (whether as a parameter or when
 registering the plugin), this will return nothing.
 
-
-=head1 TODO
-
-- Make this work asynchronously.
+For a non-blocking request, append a callback function.
+The parameters of the callback are identical to the methods
+return values in blocking requests.
 
 
 =head1 DEPENDENCIES
