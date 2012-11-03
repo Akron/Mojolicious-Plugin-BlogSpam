@@ -8,7 +8,9 @@ use Scalar::Util qw/weaken/;
 
 our $VERSION = '0.03';
 
-# Todo: Check for blacklist/whitelist/mandatory/max words etc. yourself.
+# Todo: - Check for blacklist/whitelist/max words etc. yourself.
+#       - Create a route condition for posts.
+#         -> $r->post('/comment')->over('blogspam')->to('#');
 
 # 'fail' is a special flag
 our @OPTION_ARRAY =

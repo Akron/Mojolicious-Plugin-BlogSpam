@@ -91,6 +91,8 @@ done_testing;
 
 exit;
 
+# Live testing shouldn't be necessary
+
 # New object:
 $t = Test::Mojo->new;
 $app = $t->app;
