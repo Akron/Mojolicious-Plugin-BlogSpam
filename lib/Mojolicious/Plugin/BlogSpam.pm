@@ -4,18 +4,18 @@ use Mojo::URL;
 use Mojo::JSON;
 use Mojo::Log;
 use Mojo::UserAgent;
-use Scalar::Util qw/weaken/;
+use Scalar::Util 'weaken';
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 # Todo: - Check for blacklist/whitelist/max words etc. yourself.
 #       - Create a route condition for posts.
 #         -> $r->post('/comment')->over('blogspam')->to('#');
 
-# 'fail' is a special flag
 our @OPTION_ARRAY =
   qw/blacklist exclude whitelist mandatory
      max-links max-size min-size min-words/;
+     # 'fail' is special, as it is boolean
 
 
 # Register plugin
@@ -44,7 +44,7 @@ sub register {
   my $log;
   if (my $log_path = delete $params->{log}) {
     $log = Mojo::Log->new(
-      path => $log_path,
+      path  => $log_path,
       level => delete $params->{log_level} || 'info'
     );
   };
@@ -63,6 +63,8 @@ sub register {
   $mojo->helper(
     blogspam => sub {
       my $c = shift;
+
+      # Create new BlogSpam::Comment object
       my $obj = Mojolicious::Plugin::BlogSpam::Comment->new(
 	url    => $url->to_string,
 	log    => $log,
@@ -103,6 +105,8 @@ sub register {
 package Mojolicious::Plugin::BlogSpam::Comment;
 use Mojo::Base -base;
 
+
+# Attributes
 has [qw/comment ip email link name subject agent/];
 
 
@@ -113,6 +117,7 @@ sub test_comment {
   # Callback for async
   my $cb = pop if $_[-1] && ref $_[-1] && ref $_[-1] eq 'CODE';
 
+  # No IP or comment text defined
   unless ($self->ip && $self->comment) {
     $self->{app}->log->debug('You have to specify ip and comment');
     return;
@@ -142,10 +147,13 @@ sub test_comment {
 	%{$self->hash},
 	@options
       ) => sub {
+
+	# Analyze response
 	return $cb->( $self->_handle_test_response( shift ) );
       }
     );
 
+    # Do not use this value
     return -1;
   };
 
@@ -157,7 +165,127 @@ sub test_comment {
     )
   );
 
+  # Analyze response
   return $self->_handle_test_response($res);
+};
+
+
+# Classify a comment as spam or ham
+sub classify_comment {
+  my $self = shift;
+  my $train = shift;
+
+  # Callback for async
+  my $cb = pop if $_[-1] && ref $_[-1] && ref $_[-1] eq 'CODE';
+
+  # Missing comment and valid train option
+  unless ($self->comment && $train && $train =~ /^(?:ok|spam)$/) {
+    $self->{app}->log->debug('You have to specify comment and train');
+    return;
+  };
+
+  # Create site array if set
+  my @site = (site => $self->{site}) if $self->{site};
+
+  # Send xml-rpc call
+  if ($cb) {
+
+    # Non-blocking request
+    $self->_xml_rpc_call(classifyComment => (
+      %{$self->hash},
+      train => $train,
+      @site,
+      sub {
+	my $res = shift;
+	$cb->($res ? 1 : 0);
+      }
+    ));
+
+    return;
+  };
+
+  # Blocking request
+  return 1 if $self->_xml_rpc_call(classifyComment => (
+    %{$self->hash},
+    train => $train,
+    @site
+  ));
+
+  return;
+};
+
+
+# Get a list of plugins installed at the BlogSpam instance
+sub get_plugins {
+  my $self = shift;
+
+  # Callback for async
+  my $cb = pop if $_[-1] && ref $_[-1] && ref $_[-1] eq 'CODE';
+
+  # Response of xml-rpc call
+  if ($cb) {
+
+    # Non-blocking request
+    $self->_xml_rpc_call(
+      getPlugins => sub {
+	my $res = shift;
+
+	# Analyze response in callback
+	return $cb->($self->_handle_plugins_response($res));
+      });
+
+    return ();
+  };
+
+  # Blocking request
+  my $res = $self->_xml_rpc_call('getPlugins');
+
+  # Analyze response
+  return $self->_handle_plugins_response($res);
+};
+
+
+# Get statistics of your site from the BlogSpam instance
+sub get_stats {
+  my $self = shift;
+
+  # Callback for async
+  my $cb = pop if $_[-1] && ref $_[-1] && ref $_[-1] eq 'CODE';
+
+  my $site = shift || $self->{site};
+
+  # No site is given
+  return unless $site;
+
+  # Send xml-rpc call
+  if ($cb) {
+
+    # Send non-blocking request
+    my $res = $self->_xml_rpc_call(
+      'getStats', $site => sub {
+	my $res = shift;
+	return $cb->($self->_handle_stats_response($res));
+      });
+
+    return;
+  };
+
+  # Send blocking request
+  my $res = $self->_xml_rpc_call('getStats', $site);
+  return $self->_handle_stats_response($res);
+};
+
+
+# Get a hash representation of the comment
+sub hash {
+  my $self = shift;
+  my %hash = %$self;
+
+  # Delete non-comment info
+  delete @hash{qw/site app url log client base_options/};
+
+  # Delete empty values
+  return { map {$_ => $hash{$_} } grep { $hash{$_} } keys %hash };
 };
 
 
@@ -207,74 +335,7 @@ sub _handle_test_response {
   return -1 if $1 eq 'ERROR';
 
   # The comment is considered spam
-  return if $1 eq 'SPAM';
-};
-
-
-# Classify a comment as spam or ham
-sub classify_comment {
-  my $self = shift;
-  my $train = shift;
-
-  # Callback for async
-  my $cb = pop if $_[-1] && ref $_[-1] && ref $_[-1] eq 'CODE';
-
-  # Missing comment and valid train option
-  unless ($self->comment && $train && $train =~ /^(?:ok|spam)$/) {
-    $self->{app}->log->debug('You have to specify comment and train');
-    return;
-  };
-
-  # Create site array if set
-  my @site = (site => $self->{site}) if $self->{site};
-
-  # Send xml-rpc call
-  if ($cb) {
-    $self->_xml_rpc_call(classifyComment => (
-      %{$self->hash},
-      train => $train,
-      @site => sub {
-	my $res = shift;
-	$cb->($res ? 1 : 0);
-      }
-    ));
-
-    return;
-  };
-
-  return 1 if $self->_xml_rpc_call(classifyComment => (
-    %{$self->hash},
-    train => $train,
-    @site
-  ));
-
-  return;
-};
-
-
-# Get a list of plugins installed at the BlogSpam instance
-sub get_plugins {
-  my $self = shift;
-
-  # Callback for async
-  my $cb = pop if $_[-1] && ref $_[-1] && ref $_[-1] eq 'CODE';
-
-  # Response of xml-rpc call
-  if ($cb) {
-
-    # Non-blocking request
-    $self->_xml_rpc_call(
-      getPlugins => sub {
-	my $res = shift;
-	return $cb->($self->_handle_plugins_response($res));
-      });
-
-    return ();
-  };
-
-  # Blocking request
-  my $res = $self->_xml_rpc_call('getPlugins');
-  return $self->_handle_plugins_response($res);
+  return 0;
 };
 
 
@@ -295,37 +356,6 @@ sub _handle_plugins_response {
 };
 
 
-# Get statistics of your site from the BlogSpam instance
-sub get_stats {
-  my $self = shift;
-
-  # Callback for async
-  my $cb = pop if $_[-1] && ref $_[-1] && ref $_[-1] eq 'CODE';
-
-  my $site = shift || $self->{site};
-
-  # No site is given
-  return unless $site;
-
-  # Send xml-rpc call
-  if ($cb) {
-
-    # Send non-blocking request
-    my $res = $self->_xml_rpc_call(
-      'getStats', $site => sub {
-	my $res = shift;
-	return $cb->($self->_handle_stats_response($res));
-      });
-
-    return;
-  };
-
-  # Send blocking request
-  my $res = $self->_xml_rpc_call('getStats', $site);
-  return $self->_handle_stats_response($res);
-};
-
-
 # Handle get_stats response
 sub _handle_stats_response {
   my $self = shift;
@@ -343,19 +373,6 @@ sub _handle_stats_response {
     sub {
       return ($_->at('name')->text, $_->at('value > int')->text);
     })}};
-};
-
-
-# Get a hash representation of the comment
-sub hash {
-  my $self = shift;
-  my %hash = %$self;
-
-  # Delete non-comment info
-  delete @hash{qw/site app url log client base_options/};
-
-  # Delete empty values
-  return { map {$_ => $hash{$_} } grep { $hash{$_} } keys %hash };
 };
 
 
@@ -509,6 +526,7 @@ sub _log_error {
   return;
 };
 
+
 1;
 
 
@@ -518,7 +536,7 @@ __END__
 
 =head1 NAME
 
-Mojolicious::Plugin::BlogSpam - Test your comments using BlogSpam
+Mojolicious::Plugin::BlogSpam - Check your comments using BlogSpam
 
 
 =head1 SYNOPSIS
@@ -550,7 +568,8 @@ Mojolicious::Plugin::BlogSpam - Test your comments using BlogSpam
 
 =head1 DESCRIPTION
 
-L<Mojolicious::Plugin::BlogSpam> is a simple to test
+L<Mojolicious::Plugin::BlogSpam> is a plugin
+for L<Mojolicious> to test
 comments or posts for spam against a
 L<BlogSpam|http://blogspam.net/> instance
 (see L<Blog::Spam::API> for the codebase).
@@ -619,7 +638,7 @@ Spam is logged as C<info>, errors are logged as C<error>.
 In addition to these parameters, additional option parameters
 are allowed as defined in the
 L<BlogSpam API|http://blogspam.net/api>.
-See L</"test_command"> method below.
+See L</"test_comment"> method below.
 
 
 =head1 HELPERS
@@ -751,7 +770,7 @@ or a CIDR range ("192.168.0.1/8").
 =item C<exclude>
 
 Exclude a plugin or an array reference of plugins from testing.
-See C<get_plugins> for installed plugins of the BlogSpam instance.
+See L</"get_plugins"> for installed plugins of the BlogSpam instance.
 
 =item C<fail>
 
@@ -765,22 +784,22 @@ of the blogspam object, that is mandatory
 
 =item C<max-links>
 
-The maximum number of links contained in the comment.
+The maximum number of links allowed in the comment.
 This defaults to 10.
 
 =item C<max-size>
 
-The maximum size of the comment text, given as a
+The maximum size of the comment text allowed, given as a
 byte expression (e.g. "2k").
 
 =item C<min-size>
 
-The minimum size of the comment text, given as a
+The minimum size of the comment text needed, given as a
 byte expression (e.g. "2k").
 
 =item C<min-words>
 
-The minimum number of words of the comment text.
+The minimum number of words of the comment text needed.
 Defaults to 4.
 
 =item C<whitelist>
@@ -799,7 +818,7 @@ return values in blocking requests.
 =head2 C<classify_comment>
 
   $bs->classify_comment('ok');
-  $bs->classify_comment('ok' => sub {
+  $bs->classify_comment(ok => sub {
     print 'Done!';
   });
 
