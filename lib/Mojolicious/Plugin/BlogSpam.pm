@@ -6,7 +6,7 @@ use Mojo::Log;
 use Mojo::UserAgent;
 use Scalar::Util 'weaken';
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 # Todo: - Check for blacklist/whitelist/max words etc. yourself.
 #       - Create a route condition for posts.
@@ -59,6 +59,7 @@ sub register {
   };
   $base_options = \%options if %options;
 
+
   # Add 'blogspam' helper
   $mojo->helper(
     blogspam => sub {
@@ -95,6 +96,7 @@ sub register {
 	};
       };
 
+      # Return blogspam object
       return $obj;
     }
   );
@@ -180,7 +182,7 @@ sub classify_comment {
 
   # Missing comment and valid train option
   unless ($self->comment && $train && $train =~ /^(?:ok|spam)$/) {
-    $self->{app}->log->debug('You have to specify comment and train');
+    $self->{app}->log->debug('You have to specify comment and train value');
     return;
   };
 
@@ -291,8 +293,7 @@ sub hash {
 
 # Handle test_comment response
 sub _handle_test_response {
-  my $self = shift;
-  my $res  = shift;
+  my ($self, $res)  = @_;
 
   # No response
   return -1 unless $res;
@@ -308,7 +309,7 @@ sub _handle_test_response {
   $response = $response->all_text;
 
   # Response string is malformed
-  return -1 unless $response =~ /^(OK|ERROR|SPAM)(?:\:\s*(.+?))$/;
+  return -1 unless $response =~ /^(OK|ERROR|SPAM)(?:\:\s*(.+?))?$/;
 
   # Comment is no spam
   return 1 if $1 eq 'OK';
@@ -341,8 +342,7 @@ sub _handle_test_response {
 
 # Handle get_plugins response
 sub _handle_plugins_response {
-  my $self = shift;
-  my $res = shift;
+  my ($self, $res) = @_;
 
   # Retrieve result
   my $array =
@@ -358,8 +358,7 @@ sub _handle_plugins_response {
 
 # Handle get_stats response
 sub _handle_stats_response {
-  my $self = shift;
-  my $res = shift;
+  my ($self, $res) = @_;
 
   # Get response struct
   my $hash =
@@ -442,7 +441,7 @@ sub _xml_rpc_call {
 
   # Start xml document
   my $xml = '<?xml version="1.0"?>' .
-    "<methodCall><methodName>$method_name</methodName>";
+    "\n<methodCall><methodName>$method_name</methodName>";
 
   # Send with params
   if ($param) {
@@ -459,6 +458,7 @@ sub _xml_rpc_call {
 	        "</value></member>\n" if $param->{$_};
       };
 
+      # End struct
       $xml .= '</struct>';
     }
 
@@ -467,9 +467,11 @@ sub _xml_rpc_call {
       $xml .= "<string>$param</string>";
     };
 
+    # End parameter list
     $xml .= '</value></param></params>';
   };
 
+  # End method call
   $xml .= '</methodCall>';
 
   # Post method call to BlogSpam instance
@@ -519,8 +521,8 @@ sub _log_error {
 
   my ($err, $code) = $tx->error;
   $self->{app}->log->warn(
-    'Connection error: [' . ($code || '*') . "] $code " .
-      'for ' . $self->{url}
+    'Connection error: [' . ($code || '*') . "] $code for " .
+      $self->{url}
     );
 
   return;
@@ -635,7 +637,7 @@ Spam is logged as C<info>, errors are logged as C<error>.
 
 =back
 
-In addition to these parameters, additional option parameters
+In addition to these parameters, additional optional parameters
 are allowed as defined in the
 L<BlogSpam API|http://blogspam.net/api>.
 See L</"test_comment"> method below.
@@ -734,11 +736,11 @@ These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
   # Blocking
   if ($bs->test_comment(
          mandatory => 'name',
-         blacklist => ['192.168.0.1'])
-     ) {
-    print 'ham!';
+         blacklist => ['192.168.0.1']
+      )) {
+    print 'Probably ham!';
   } else {
-    print 'spam!';
+    print 'Spam!';
   };
 
   # Non-blocking
@@ -747,12 +749,12 @@ These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
     blacklist => ['192.168.0.1'],
     sub {
       my $result = shift;
-      print ($result ? 'Ham!' : 'Spam!');
+      print ($result ? 'Probably ham!' : 'Spam!');
     }
   );
 
 Test the comment of the blogspam object for spam or ham.
-It's necessary to have a defined comment text and ip address.
+It's necessary to have a defined comment text and an IP address.
 The method returns nothing in case the comment is detected
 as spam, C<1> if the comment is detected as ham and C<-1>
 if something went horribly, horribly wrong.
@@ -779,7 +781,7 @@ Boolean flag that will, if set, return every comment as C<spam>.
 =item C<mandatory>
 
 Define an attribute (or an array reference of attributes)
-of the blogspam object, that is mandatory
+of the blogspam object, that should be treated as mandatory
 (e.g. "name" or "subject").
 
 =item C<max-links>
@@ -811,7 +813,7 @@ or a CIDR range ("192.168.0.1/8").
 =back
 
 For a non-blocking request, append a callback function.
-The parameters of the callback are identical to the methods
+The parameters of the callback are identical to the method's
 return values in blocking requests.
 
 
@@ -830,7 +832,7 @@ Expects a defined C<comment> attribute and
 a single parameter, either C<ok> or C<spam>.
 
 For a non-blocking request, append a callback function.
-The parameters of the callback are identical to the methods
+The parameters of the callback are identical to the method's
 return values in blocking requests.
 
 
@@ -844,7 +846,7 @@ return values in blocking requests.
 Requests a list of plugins installed at the BlogSpam instance.
 
 For a non-blocking request, append a callback function.
-The parameters of the callback are identical to the methods
+The parameters of the callback are identical to the method's
 return values in blocking requests.
 
 =head2 C<get_stats>
@@ -861,7 +863,7 @@ If no C<site> attribute is given (whether as a parameter or when
 registering the plugin), this will return nothing.
 
 For a non-blocking request, append a callback function.
-The parameters of the callback are identical to the methods
+The parameters of the callback are identical to the method's
 return values in blocking requests.
 
 
