@@ -6,7 +6,7 @@ use Mojo::Log;
 use Mojo::UserAgent;
 use Scalar::Util 'weaken';
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 # Todo: - Check for blacklist/whitelist/max words etc. yourself.
 #       - Create a route condition for posts.
@@ -24,7 +24,7 @@ sub register {
 
   $params ||= {};
 
-  # Load parameter from Config file
+  # Load parameters from Config file
   if (my $config_param = $mojo->config('BlogSpam')) {
     $params = { %$config_param, %$params };
   };
@@ -49,8 +49,8 @@ sub register {
     );
   };
 
-  my $app_clone = $mojo;
-  weaken $app_clone;
+  my $app_log_clone = $mojo->log;
+  weaken $app_log_clone;
 
   # Get option defaults
   my (%options, $base_options);
@@ -67,11 +67,11 @@ sub register {
 
       # Create new BlogSpam::Comment object
       my $obj = Mojolicious::Plugin::BlogSpam::Comment->new(
-	url    => $url->to_string,
-	log    => $log,
-	site   => $site,
-	app    => $app_clone,
-	client => __PACKAGE__ . ' v' . $VERSION,
+	url     => $url->to_string,
+	log     => $log,
+	site    => $site,
+	app_log => $app_log_clone,
+	client  => __PACKAGE__ . ' v' . $VERSION,
 	base_options => $base_options,
 	@_
       );
@@ -121,7 +121,7 @@ sub test_comment {
 
   # No IP or comment text defined
   unless ($self->ip && $self->comment) {
-    $self->{app}->log->debug('You have to specify ip and comment');
+    $self->{app_log}->debug('You have to specify ip and comment');
     return;
   };
 
@@ -175,14 +175,14 @@ sub test_comment {
 # Classify a comment as spam or ham
 sub classify_comment {
   my $self = shift;
-  my $train = shift;
+  my $train = lc shift;
 
   # Callback for async
   my $cb = pop if $_[-1] && ref $_[-1] && ref $_[-1] eq 'CODE';
 
   # Missing comment and valid train option
   unless ($self->comment && $train && $train =~ /^(?:ok|spam)$/) {
-    $self->{app}->log->debug('You have to specify comment and train value');
+    $self->{app_log}->debug('You have to specify comment and train value');
     return;
   };
 
@@ -284,7 +284,7 @@ sub hash {
   my %hash = %$self;
 
   # Delete non-comment info
-  delete @hash{qw/site app url log client base_options/};
+  delete @hash{qw/site app_log url log client base_options/};
 
   # Delete empty values
   return { map {$_ => $hash{$_} } grep { $hash{$_} } keys %hash };
@@ -365,7 +365,7 @@ sub _handle_stats_response {
     $res->dom->at('methodResponse > params > param > value > struct');
 
   # No response struct defined
-  return {} unless $hash;
+  return +{} unless $hash;
 
   # Convert struct to hash
   return {@{$hash->find('member')->map(
@@ -420,6 +420,7 @@ sub _options {
 
   # return option string
   return join(',', @options) if @options;
+
   return;
 };
 
@@ -479,7 +480,7 @@ sub _xml_rpc_call {
 
     # Post non-blocking
     $ua->post(
-      $self->{url} => {} => $xml => sub {
+      $self->{url} => +{} => $xml => sub {
 	my $tx = pop;
 
 	my $res = $tx->success;
@@ -494,13 +495,15 @@ sub _xml_rpc_call {
 	$cb->($res);
 	$ua = undef;
       });
+
+    # Start IOLoop if not already running
     Mojo::IOLoop->start unless Mojo::IOLoop->is_running;
 
     return;
   };
 
   # Post blocking
-  my $tx = $ua->post($self->{url} => {} => $xml);
+  my $tx = $ua->post($self->{url} => +{} => $xml);
   my $res = $tx->success;
 
   # Connection failure - accept comment
@@ -516,12 +519,13 @@ sub _xml_rpc_call {
 
 # Log connection_error
 sub _log_error {
-  my $self = shift;
-  my $tx = shift;
+  my ($self, $tx) = @_;
 
   my ($err, $code) = $tx->error;
-  $self->{app}->log->warn(
-    'Connection error: [' . ($code || '*') . "] $code for " .
+  $code ||= '*';
+
+  $self->{app_log}->warn(
+    "Connection error: [$code] $err for " .
       $self->{url}
     );
 
@@ -556,12 +560,12 @@ Mojolicious::Plugin::BlogSpam - Check your comments using BlogSpam
 
   # Check for spam
   if ($blogspam->test_comment) {
-    print "Your comment is no spam!\n";
+    say "Your comment is no spam!";
   };
 
   # Even non-blocking
   $blogspam->test_comment(sub {
-    print "Your comment is no spam!\n" if shift;
+    say "Your comment is no spam!" if shift;
   });
 
   # Train the system
@@ -579,6 +583,9 @@ It supports blocking as well as non-blocking requests.
 
 
 =head1 METHODS
+
+L<Mojolicious::Plugin::BlogSpam> inherits all methods
+from L<Mojolicious::Plugin> and implements the following new ones.
 
 =head2 C<register>
 
@@ -738,9 +745,9 @@ These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
          mandatory => 'name',
          blacklist => ['192.168.0.1']
       )) {
-    print 'Probably ham!';
+    say 'Probably ham!';
   } else {
-    print 'Spam!';
+    say 'Spam!';
   };
 
   # Non-blocking
@@ -749,7 +756,7 @@ These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
     blacklist => ['192.168.0.1'],
     sub {
       my $result = shift;
-      print ($result ? 'Probably ham!' : 'Spam!');
+      say ($result ? 'Probably ham!' : 'Spam!');
     }
   );
 
@@ -821,7 +828,7 @@ return values in blocking requests.
 
   $bs->classify_comment('ok');
   $bs->classify_comment(ok => sub {
-    print 'Done!';
+    say 'Done!';
   });
 
 
@@ -840,7 +847,7 @@ return values in blocking requests.
 
   my @plugins = $bs->get_plugins;
   $bs->get_plugins(sub {
-    print join ', ', @_;
+    say join ', ', @_;
   });
 
 Requests a list of plugins installed at the BlogSpam instance.

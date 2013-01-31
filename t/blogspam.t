@@ -132,3 +132,4 @@ $bs->get_plugins(sub {
    ok(@_ > 3, 'Async Test 4 - get_plugins');
   });
 
+done_testing;
