@@ -6,7 +6,7 @@ use Mojo::Log;
 use Mojo::UserAgent;
 use Scalar::Util 'weaken';
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 # Todo: - Check for blacklist/whitelist/max words etc. yourself.
 #       - Create a route condition for posts.
@@ -892,7 +892,7 @@ L<http://blogspam.net/>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2012, Nils Diewald.
+Copyright (C) 2012-2013, Nils Diewald.
 
 This program is free software, you can redistribute it
 and/or modify it under the same terms as Perl.
