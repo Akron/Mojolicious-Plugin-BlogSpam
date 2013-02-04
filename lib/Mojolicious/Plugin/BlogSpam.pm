@@ -587,7 +587,7 @@ It supports blocking as well as non-blocking requests.
 L<Mojolicious::Plugin::BlogSpam> inherits all methods
 from L<Mojolicious::Plugin> and implements the following new ones.
 
-=head2 C<register>
+=head2 register
 
   # Mojolicious
   $app->plugin(Blogspam => {
@@ -652,7 +652,7 @@ See L</"test_comment"> method below.
 
 =head1 HELPERS
 
-=head2 C<blogspam>
+=head2 blogspam
 
   # In controller:
   my $bs = $c->blogspam(
@@ -668,7 +668,7 @@ Returns a new blogspam object, based on the given attributes.
 These attributes are primarily based on
 the L<BlogSpam API|http://blogspam.net/api>.
 
-=head2 C<agent>
+=head2 agent
 
   $bs->agent('Mozilla/5.0 (X11; Linux x86_64; rv:12.0) ...');
   my $agent = $bs->agent;
@@ -677,7 +677,7 @@ The user-agent sending the comment.
 Defaults to the user-agent of the request.
 
 
-=head2 C<comment>
+=head2 comment
 
   $bs->comment('This is just a test comment');
   my $comment_text = $bs->comment;
@@ -685,7 +685,7 @@ Defaults to the user-agent of the request.
 The comment text.
 
 
-=head2 C<email>
+=head2 email
 
   $bs->email('spammer@sojolicio.us');
   my $email = $bs->email;
@@ -693,14 +693,14 @@ The comment text.
 The email address of the commenter.
 
 
-=head2 C<hash>
+=head2 hash
 
   my $hash = $bs->hash;
 
 Returns a hash representation of the comment.
 
 
-=head2 C<ip>
+=head2 ip
 
   $bs->ip('192.168.0.1');
   my $ip = $bs->ip;
@@ -710,7 +710,7 @@ Defaults to the ip address of the request.
 Supports C<X-Forwarded-For> proxy information.
 
 
-=head2 C<link>
+=head2 link
 
   $bs->link('http://grimms-abenteuer.de/');
   my $link = $bs->link;
@@ -718,7 +718,7 @@ Supports C<X-Forwarded-For> proxy information.
 Homepage link given by the commenter.
 
 
-=head2 C<name>
+=head2 name
 
   $bs->name('Akron');
   my $name = $bs->name;
@@ -726,7 +726,7 @@ Homepage link given by the commenter.
 Name given by the commenter.
 
 
-=head2 C<subject>
+=head2 subject
 
   $bs->subject('Fun');
   my $subject = $bs->subject;
@@ -738,7 +738,7 @@ Subject given by the commenter.
 
 These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
 
-=head2 C<test_comment>
+=head2 test_comment
 
   # Blocking
   if ($bs->test_comment(
@@ -824,7 +824,7 @@ The parameters of the callback are identical to the method's
 return values in blocking requests.
 
 
-=head2 C<classify_comment>
+=head2 classify_comment
 
   $bs->classify_comment('ok');
   $bs->classify_comment(ok => sub {
@@ -843,7 +843,7 @@ The parameters of the callback are identical to the method's
 return values in blocking requests.
 
 
-=head2 C<get_plugins>
+=head2 get_plugins
 
   my @plugins = $bs->get_plugins;
   $bs->get_plugins(sub {
@@ -856,7 +856,7 @@ For a non-blocking request, append a callback function.
 The parameters of the callback are identical to the method's
 return values in blocking requests.
 
-=head2 C<get_stats>
+=head2 get_stats
 
   my $stats = $bs->get_stats;
   my $stats = $bs->get_stats('http://sojolicio.us/');
