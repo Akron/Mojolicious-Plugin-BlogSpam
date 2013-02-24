@@ -560,12 +560,12 @@ Mojolicious::Plugin::BlogSpam - Check your comments using BlogSpam
 
   # Check for spam
   if ($blogspam->test_comment) {
-    say "Your comment is no spam!";
+    print "Your comment is no spam!\n";
   };
 
   # Even non-blocking
   $blogspam->test_comment(sub {
-    say "Your comment is no spam!" if shift;
+    print "Your comment is no spam!\n" if shift;
   });
 
   # Train the system
@@ -745,9 +745,9 @@ These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
          mandatory => 'name',
          blacklist => ['192.168.0.1']
       )) {
-    say 'Probably ham!';
+    print 'Probably ham!';
   } else {
-    say 'Spam!';
+    print 'Spam!';
   };
 
   # Non-blocking
@@ -756,7 +756,7 @@ These methods are based on the L<BlogSpam API|http://blogspam.net/api>.
     blacklist => ['192.168.0.1'],
     sub {
       my $result = shift;
-      say ($result ? 'Probably ham!' : 'Spam!');
+      print ($result ? 'Probably ham!' : 'Spam!');
     }
   );
 
@@ -828,7 +828,7 @@ return values in blocking requests.
 
   $bs->classify_comment('ok');
   $bs->classify_comment(ok => sub {
-    say 'Done!';
+    print 'Done!';
   });
 
 
@@ -847,7 +847,7 @@ return values in blocking requests.
 
   my @plugins = $bs->get_plugins;
   $bs->get_plugins(sub {
-    say join ', ', @_;
+    print join ', ', @_;
   });
 
 Requests a list of plugins installed at the BlogSpam instance.
