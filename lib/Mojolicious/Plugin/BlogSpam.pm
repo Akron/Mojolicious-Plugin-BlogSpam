@@ -4,6 +4,7 @@ use Mojo::URL;
 use Mojo::JSON;
 use Mojo::Log;
 use Mojo::UserAgent;
+use Mojo::IOLoop;
 use Scalar::Util 'weaken';
 
 our $VERSION = '0.07';
@@ -478,26 +479,30 @@ sub _xml_rpc_call {
   # Post method call to BlogSpam instance
   if ($cb) {
 
-    # Post non-blocking
-    $ua->post(
-      $self->{url} => +{} => $xml => sub {
+    # Create delay object
+    my $delay = Mojo::IOLoop->delay(
+      sub {
 	my $tx = pop;
 
 	my $res = $tx->success;
 
 	# Connection failure - accept comment
 	unless ($res) {
+	  # Maybe there needs something to be weakened
 	  $self->_log_error($tx);
 	  return;
 	};
 
 	# Send response to callback
 	$cb->($res);
-	$ua = undef;
-      });
+      }
+    );
 
-    # Start IOLoop if not already running
-    Mojo::IOLoop->start unless Mojo::IOLoop->is_running;
+    # Post non-blocking
+    $ua->post($self->{url} => +{} => $xml => $delay->begin);
+
+    # Start IOLoop if not started already
+    $delay->wait unless Mojo::IOLoop->is_running;
 
     return;
   };
