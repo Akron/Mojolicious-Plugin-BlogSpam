@@ -547,7 +547,7 @@ __END__
 
 =head1 NAME
 
-Mojolicious::Plugin::BlogSpam - Check your comments using BlogSpam
+Mojolicious::Plugin::BlogSpam - Check your Comments using BlogSpam
 
 
 =head1 SYNOPSIS

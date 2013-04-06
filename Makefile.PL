@@ -6,12 +6,15 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
   VERSION_FROM => 'lib/Mojolicious/Plugin/BlogSpam.pm',
+  ABSTRACT     => 'Check your Comments using BlogSpam',
   NAME         => 'Mojolicious::Plugin::BlogSpam',
   AUTHOR       => 'Nils Diewald',
+  BUILD_REQUIRES => {
+    'Test::More' => 0
+  },
   PREREQ_PM => {
     'Mojolicious' => 3.43,
-    'Scalar::Util' => 1.20,
-    'Test::More' => 0
+    'Scalar::Util' => 1.20
   },
   LICENSE      => 'perl',
   META_MERGE   => {
@@ -21,6 +24,7 @@ WriteMakefile(
       repository  => 'https://github.com/Akron/Mojolicious-Plugin-BlogSpam'
     }
   },
-  test => {TESTS => 't/*.t t/*/*.t t/*/*/*.t t/*/*/*/*.t'}
+  MIN_PERL_VERSION => '5.010001',
+  test => {TESTS => 't/*.t'}
 );
 
