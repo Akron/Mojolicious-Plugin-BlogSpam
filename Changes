@@ -1,7 +1,8 @@
-0.07 2013-02-24
+0.07 2013-05-20
         - Update year.
 	- Documentation tweaks.
 	- Fix non-blocking bug.
+	- Check for Mojolicious 4.0 compatibility.
 
 0.06 2013-01-31
         - Small improvements of the documentation.
