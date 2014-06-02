@@ -7,7 +7,7 @@ use Mojo::UserAgent;
 use Mojo::IOLoop;
 use Scalar::Util 'weaken';
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 # Todo: - Check for blacklist/whitelist/max words etc. yourself.
 #       - Create a route condition for posts.
@@ -897,10 +897,10 @@ L<http://blogspam.net/>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2012-2013, L<Nils Diewald|http://nils-diewald.de/>.
+Copyright (C) 2012-2014, L<Nils Diewald|http://nils-diewald.de/>.
 
 This program is free software, you can redistribute it
-and/or modify it under the same terms as Perl.
+and/or modify it under the terms of the Artistic License version 2.0.
 
 The API definition as well as the BlogSpam API code were
 written and defined by Steve Kemp.
