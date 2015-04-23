@@ -7,9 +7,10 @@ use Mojo::UserAgent;
 use Mojo::IOLoop;
 use Scalar::Util 'weaken';
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
-# Todo: - Check for blacklist/whitelist/max words etc. yourself.
+# TODO: X-Forwarded-For in Config per index steuern
+# TODO: - Check for blacklist/whitelist/max words etc. yourself.
 #       - Create a route condition for posts.
 #         -> $r->post('/comment')->over('blogspam')->to('#');
 
@@ -89,10 +90,10 @@ sub register {
 	# Get forwarded ip
 	if (my $ip = $headers->to_hash->{'X-Forwarded-For'}) {
 	  $obj->ip( split(/\s*,\s*/, $ip) );
-	}
+	};
 
-	# Get host ip
-	else {
+	# Get host ip, because X-Forwarded-For wasn't set
+	unless ($obj->ip) {
 	  $obj->ip( split(/\s*:\s*/, ($headers->host || '')) );
 	};
       };
@@ -897,7 +898,7 @@ L<http://blogspam.net/>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2012-2014, L<Nils Diewald|http://nils-diewald.de/>.
+Copyright (C) 2012-2015, L<Nils Diewald|http://nils-diewald.de/>.
 
 This program is free software, you can redistribute it
 and/or modify it under the terms of the Artistic License version 2.0.

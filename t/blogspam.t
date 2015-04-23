@@ -47,9 +47,7 @@ is($bs->ip, '192.168.0.20', 'ip');
 is($bs->name, 'Akron', 'name');
 is($bs->agent, 'mOJO-bOt', 'agent');
 
-my $c = Mojolicious::Controller->new;
-
-$c->app($app);
+my $c = $app->build_controller;
 
 ok($bs = $app->blogspam(
   comment => 'This is a test post',

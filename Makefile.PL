@@ -13,7 +13,7 @@ WriteMakefile(
     'Test::More' => 0
   },
   PREREQ_PM => {
-    'Mojolicious' => 3.43,
+    'Mojolicious' => 4.88,
     'Scalar::Util' => 1.20
   },
   LICENSE      => 'artistic_2',
