@@ -322,6 +322,7 @@ return values in blocking requests.
   my $stats = $bs->get_stats('http://sojolicio.us/');
   $bs->get_stats(sub {
     my $stats = shift;
+    ...
   });
 
 Requests a hash reference of statistics for your site
@@ -350,19 +351,23 @@ L<http://blogspam.net/>.
   https://github.com/Akron/Mojolicious-Plugin-BlogSpam
 
 
+=head1 PRIVACY POLICY
+
+Be aware that information of your users may be send
+to a third party.
+This may need to be noted in your privacy policy if you
+use a foreign BlogSpam instance, especially if you
+are located in the European Union.
+
+
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2012-2015, L<Nils Diewald|http://nils-diewald.de/>.
+Copyright (C) 2012-2018, L<Nils Diewald|http://nils-diewald.de/>.
 
 This program is free software, you can redistribute it
 and/or modify it under the terms of the Artistic License version 2.0.
 
 The API definition as well as the BlogSpam API code were
 written and defined by Steve Kemp.
-
-Be aware that information of your users may be send
-to a third party.
-This should be noted in your privacy policy if you
-use a foreign BlogSpam instance.
 
 =cut
