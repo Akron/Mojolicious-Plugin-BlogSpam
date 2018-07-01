@@ -351,7 +351,7 @@ L<http://blogspam.net/>.
   https://github.com/Akron/Mojolicious-Plugin-BlogSpam
 
 
-=head1 PRIVACY POLICY
+=head1 PRIVACY NOTE
 
 Be aware that information of your users may be send
 to a third party.
