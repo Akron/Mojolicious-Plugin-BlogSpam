@@ -10,7 +10,8 @@ WriteMakefile(
   NAME         => 'Mojolicious::Plugin::BlogSpam',
   AUTHOR       => 'Nils Diewald',
   BUILD_REQUIRES => {
-    'Test::More' => 0
+    'Test::More' => 0,
+    'Test::Memory::Cycle' => 1.06
   },
   PREREQ_PM => {
     'Mojolicious' => 4.88,
