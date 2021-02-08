@@ -7,7 +7,7 @@ use Mojo::UserAgent;
 use Mojo::IOLoop;
 use Scalar::Util 'weaken';
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 # TODO: X-Forwarded-For in Config per index steuern
 # TODO: - Check for blacklist/whitelist/max words etc. yourself.
@@ -908,7 +908,7 @@ are located in the European Union.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2012-2018, L<Nils Diewald|http://nils-diewald.de/>.
+Copyright (C) 2012-2021, L<Nils Diewald|https://www.nils-diewald.de/>.
 
 This program is free software, you can redistribute it
 and/or modify it under the terms of the Artistic License version 2.0.
